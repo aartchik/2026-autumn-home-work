@@ -1,0 +1,128 @@
+package company.vk.edu.distrib.compute.aartchik.urlshortener;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.StandardCharsets;
+import java.util.NoSuchElementException;
+import java.util.function.BooleanSupplier;
+
+final class UrlShortenerHandler implements HttpHandler {
+    private static final String CONTENT_TYPE = "text/html; charset=utf-8";
+    private static final String GET = "GET";
+    private static final String POST = "POST";
+    private static final String PUT = "PUT";
+    private static final String DELETE = "DELETE";
+    private static final String STATUS_PATH = "/v0/status";
+    private static final String LINKS_PATH = "/v0/links";
+    private static final String LINK_PREFIX = LINKS_PATH + "/";
+
+    private final LinkStore links;
+    private final String shortLinkPrefix;
+    private final BooleanSupplier storageAvailable;
+
+    UrlShortenerHandler(int port, LinkStore links, BooleanSupplier storageAvailable) {
+        this.links = links;
+        shortLinkPrefix = "http://localhost:" + port + "/";
+        this.storageAvailable = storageAvailable;
+    }
+
+    @Override
+    public void handle(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            HttpResponseData response = process(exchange);
+            exchange.getResponseHeaders().set("Content-Type", CONTENT_TYPE);
+            byte[] body = response.body().getBytes(StandardCharsets.UTF_8);
+            if (body.length == 0) {
+                exchange.sendResponseHeaders(response.status(), -1);
+            } else {
+                exchange.sendResponseHeaders(response.status(), body.length);
+                exchange.getResponseBody().write(body);
+            }
+        }
+    }
+
+    private HttpResponseData process(HttpExchange exchange) {
+        try {
+            return route(exchange);
+        } catch (NoSuchElementException missing) {
+            return new HttpResponseData(404);
+        } catch (IllegalArgumentException | CharacterCodingException invalidRequest) {
+            return new HttpResponseData(422);
+        } catch (IOException storageFailure) {
+            return new HttpResponseData(503);
+        } catch (RuntimeException unexpectedFailure) {
+            return new HttpResponseData(500);
+        }
+    }
+
+    private HttpResponseData route(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getRawPath();
+        if (STATUS_PATH.equals(path)) {
+            return status(exchange);
+        }
+        if (LINKS_PATH.equals(path)) {
+            return create(exchange);
+        }
+        if (path.startsWith(LINK_PREFIX)) {
+            return accessLink(exchange, path.substring(LINK_PREFIX.length()));
+        }
+        if (path.startsWith("/") && path.indexOf('/', 1) == -1) {
+            return redirect(exchange, path.substring(1));
+        }
+        return new HttpResponseData(404);
+    }
+
+    private HttpResponseData status(HttpExchange exchange) {
+        if (!GET.equals(exchange.getRequestMethod())) {
+            return methodNotAllowed(exchange, GET);
+        }
+        return new HttpResponseData(storageAvailable.getAsBoolean() ? 200 : 503);
+    }
+
+    private HttpResponseData create(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return methodNotAllowed(exchange, POST);
+        }
+        String id = links.create(readBody(exchange));
+        return new HttpResponseData(201, shortLinkPrefix + id);
+    }
+
+    private HttpResponseData accessLink(HttpExchange exchange, String id) throws IOException {
+        return switch (exchange.getRequestMethod()) {
+            case GET -> new HttpResponseData(200, links.get(id));
+            case PUT -> {
+                links.update(id, readBody(exchange));
+                yield new HttpResponseData(200);
+            }
+            case DELETE -> {
+                links.delete(id);
+                yield new HttpResponseData(202);
+            }
+            default -> methodNotAllowed(exchange, GET + ", " + PUT + ", " + DELETE);
+        };
+    }
+
+    private HttpResponseData redirect(HttpExchange exchange, String id) throws IOException {
+        if (!GET.equals(exchange.getRequestMethod())) {
+            return methodNotAllowed(exchange, GET);
+        }
+        String longLink = links.get(id);
+        exchange.getResponseHeaders().set("Location", URI.create(longLink).toASCIIString());
+        return new HttpResponseData(301);
+    }
+
+    private static HttpResponseData methodNotAllowed(HttpExchange exchange, String allowedMethods) {
+        exchange.getResponseHeaders().set("Allow", allowedMethods);
+        return new HttpResponseData(405);
+    }
+
+    private static String readBody(HttpExchange exchange) throws IOException {
+        byte[] bytes = exchange.getRequestBody().readAllBytes();
+        return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+    }
+}
