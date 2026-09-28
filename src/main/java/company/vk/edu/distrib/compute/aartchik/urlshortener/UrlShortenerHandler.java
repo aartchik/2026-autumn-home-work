@@ -18,15 +18,22 @@ final class UrlShortenerHandler implements HttpHandler {
     private static final String PUT = "PUT";
     private static final String DELETE = "DELETE";
     private static final String STATUS_PATH = "/v0/status";
+    private static final String USERS_PATH = "/internal/users";
     private static final String LINKS_PATH = "/v0/links";
     private static final String LINK_PREFIX = LINKS_PATH + "/";
 
     private final LinkStore links;
+    private final BasicAuthentication authentication;
     private final String shortLinkPrefix;
     private final BooleanSupplier storageAvailable;
 
-    UrlShortenerHandler(int port, LinkStore links, BooleanSupplier storageAvailable) {
+    UrlShortenerHandler(
+            int port,
+            LinkStore links,
+            BasicAuthentication authentication,
+            BooleanSupplier storageAvailable) {
         this.links = links;
+        this.authentication = authentication;
         shortLinkPrefix = "http://localhost:" + port + "/";
         this.storageAvailable = storageAvailable;
     }
@@ -65,14 +72,21 @@ final class UrlShortenerHandler implements HttpHandler {
         if (STATUS_PATH.equals(path)) {
             return status(exchange);
         }
+        if (USERS_PATH.equals(path)) {
+            return registerUser(exchange);
+        }
+        if (isRedirectRequest(exchange, path)) {
+            return redirect(exchange, path.substring(1));
+        }
+        if (!authentication.authenticate(exchange.getRequestHeaders())) {
+            exchange.getResponseHeaders().set("WWW-Authenticate", BasicAuthentication.CHALLENGE);
+            return new HttpResponseData(401);
+        }
         if (LINKS_PATH.equals(path)) {
             return create(exchange);
         }
         if (path.startsWith(LINK_PREFIX)) {
             return accessLink(exchange, path.substring(LINK_PREFIX.length()));
-        }
-        if (path.startsWith("/") && path.indexOf('/', 1) == -1) {
-            return redirect(exchange, path.substring(1));
         }
         return new HttpResponseData(404);
     }
@@ -90,6 +104,14 @@ final class UrlShortenerHandler implements HttpHandler {
         }
         String id = links.create(readBody(exchange));
         return new HttpResponseData(201, shortLinkPrefix + id);
+    }
+
+    private HttpResponseData registerUser(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return methodNotAllowed(exchange, POST);
+        }
+        authentication.register(readBody(exchange));
+        return new HttpResponseData(200);
     }
 
     private HttpResponseData accessLink(HttpExchange exchange, String id) throws IOException {
@@ -114,6 +136,12 @@ final class UrlShortenerHandler implements HttpHandler {
         String longLink = links.get(id);
         exchange.getResponseHeaders().set("Location", URI.create(longLink).toASCIIString());
         return new HttpResponseData(301);
+    }
+
+    private static boolean isRedirectRequest(HttpExchange exchange, String path) {
+        return GET.equals(exchange.getRequestMethod())
+                && path.startsWith("/")
+                && path.indexOf('/', 1) == -1;
     }
 
     private static HttpResponseData methodNotAllowed(HttpExchange exchange, String allowedMethods) {

@@ -23,6 +23,7 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
     @Nullable private HttpServer server;
     @Nullable private ExecutorService executor;
     @Nullable private PersistentStringDao linkDao;
+    @Nullable private PersistentStringDao userDao;
 
     UrlShortenerServiceImpl(int port, Path dataDirectory) {
         this.port = port;
@@ -61,6 +62,8 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
         try {
             PersistentStringDao links = new PersistentStringDao(dataDirectory.resolve("links.log"));
             linkDao = links;
+            PersistentStringDao users = new PersistentStringDao(dataDirectory.resolve("users.log"));
+            userDao = users;
             HttpServer httpServer = HttpServer.create(new InetSocketAddress("localhost", port), 0);
             server = httpServer;
             ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
@@ -68,7 +71,11 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
             httpServer.setExecutor(workers);
             httpServer.createContext(
                     "/",
-                    new UrlShortenerHandler(port, new LinkStore(links), links::isAvailable));
+                    new UrlShortenerHandler(
+                            port,
+                            new LinkStore(links),
+                            new BasicAuthentication(users),
+                            () -> links.isAvailable() && users.isAvailable()));
             httpServer.start();
         } catch (IOException | RuntimeException failure) {
             try {
@@ -82,20 +89,18 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
 
     private void closeResources() {
         HttpServer httpServer = server;
-        if (httpServer != null) {
-            httpServer.stop(0);
-        }
         ExecutorService workers = executor;
-        if (workers != null) {
-            workers.close();
-        }
         PersistentStringDao links = linkDao;
-        if (links != null) {
-            try {
-                links.close();
-            } catch (IOException closeFailure) {
-                throw new UncheckedIOException("Unable to close URL storage", closeFailure);
+        PersistentStringDao users = userDao;
+        try (links; users) {
+            if (httpServer != null) {
+                httpServer.stop(0);
             }
+            if (workers != null) {
+                workers.close();
+            }
+        } catch (IOException closeFailure) {
+            throw new UncheckedIOException("Unable to close persistent storage", closeFailure);
         }
     }
 }
