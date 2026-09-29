@@ -133,9 +133,9 @@ final class PersistentStringDao implements Dao<String> {
                 }
                 int keyLength = readLength(input, "key");
                 int valueLength = readLength(input, "value");
-                String key = new String(input.readNBytes(keyLength), StandardCharsets.UTF_8);
+                String key = readString(input, keyLength);
                 if (operation == UPSERT) {
-                    String value = new String(input.readNBytes(valueLength), StandardCharsets.UTF_8);
+                    String value = readString(input, valueLength);
                     entries.put(key, value);
                 } else if (operation == DELETE && valueLength == 0) {
                     entries.remove(key);
@@ -152,6 +152,10 @@ final class PersistentStringDao implements Dao<String> {
             throw new IOException("Invalid " + field + " length in journal: " + length);
         }
         return length;
+    }
+
+    private static String readString(DataInputStream input, int length) throws IOException {
+        return new String(input.readNBytes(length), StandardCharsets.UTF_8);
     }
 
     private static void validateKey(String key) {
