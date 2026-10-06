@@ -11,10 +11,13 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.NoSuchElementException;
+import java.util.concurrent.locks.ReentrantLock;
 
 final class HttpDao implements Dao<String> {
     private static final Duration TIMEOUT = Duration.ofSeconds(2);
+    private static final int NOT_FOUND = 404;
 
+    private final ReentrantLock lock = new ReentrantLock();
     private final String endpoint;
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(TIMEOUT)
@@ -27,33 +30,53 @@ final class HttpDao implements Dao<String> {
     }
 
     @Override
-    public synchronized String get(String key) throws IOException {
-        HttpResponse<byte[]> response = send(request(key).GET().build());
-        if (response.statusCode() == 404) {
-            throw new NoSuchElementException("Key not found");
+    public String get(String key) throws IOException {
+        lock.lock();
+        try {
+            HttpResponse<byte[]> response = send(request(key).GET().build());
+            if (response.statusCode() == NOT_FOUND) {
+                throw new NoSuchElementException("Key not found");
+            }
+            checkStatus(response, 200);
+            return new String(response.body(), StandardCharsets.UTF_8);
+        } finally {
+            lock.unlock();
         }
-        checkStatus(response, 200);
-        return new String(response.body(), StandardCharsets.UTF_8);
     }
 
     @Override
-    public synchronized void upsert(String key, String value) throws IOException {
-        HttpRequest request = request(key)
-                .PUT(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8))
-                .build();
-        checkStatus(send(request), 201);
+    public void upsert(String key, String value) throws IOException {
+        lock.lock();
+        try {
+            HttpRequest request = request(key)
+                    .PUT(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8))
+                    .build();
+            checkStatus(send(request), 201);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
-    public synchronized void delete(String key) throws IOException {
-        checkStatus(send(request(key).DELETE().build()), 202);
+    public void delete(String key) throws IOException {
+        lock.lock();
+        try {
+            checkStatus(send(request(key).DELETE().build()), 202);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
-    public synchronized void close() {
-        if (!closed) {
-            closed = true;
-            client.close();
+    public void close() {
+        lock.lock();
+        try {
+            if (!closed) {
+                closed = true;
+                client.close();
+            }
+        } finally {
+            lock.unlock();
         }
     }
 

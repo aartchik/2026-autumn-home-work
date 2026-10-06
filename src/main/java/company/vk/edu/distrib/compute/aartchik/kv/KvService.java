@@ -9,8 +9,10 @@ import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.ReentrantLock;
 
 final class KvService implements KVService {
+    private final ReentrantLock lifecycleLock = new ReentrantLock();
     private final int port;
     private boolean started;
     private boolean stopped;
@@ -23,7 +25,16 @@ final class KvService implements KVService {
     }
 
     @Override
-    public synchronized void start() {
+    public void start() {
+        lifecycleLock.lock();
+        try {
+            startResources();
+        } finally {
+            lifecycleLock.unlock();
+        }
+    }
+
+    private void startResources() {
         if (started || stopped) {
             throw new IllegalStateException("Service can only be started once");
         }
@@ -48,7 +59,16 @@ final class KvService implements KVService {
     }
 
     @Override
-    public synchronized void stop() {
+    public void stop() {
+        lifecycleLock.lock();
+        try {
+            closeResources();
+        } finally {
+            lifecycleLock.unlock();
+        }
+    }
+
+    private void closeResources() {
         if (stopped) {
             return;
         }

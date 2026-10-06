@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 
 final class KvHandler implements HttpHandler {
+    private static final String ENTITY_PATH = "/v0/entity";
     private final FileDao dao;
 
     KvHandler(FileDao dao) {
@@ -48,7 +49,7 @@ final class KvHandler implements HttpHandler {
                     ? new Response(dao.isAvailable() ? 200 : 503)
                     : methodNotAllowed(exchange, "GET");
         }
-        if (!"/v0/entity".equals(path)) {
+        if (!ENTITY_PATH.equals(path)) {
             return new Response(404);
         }
         String key = readKey(exchange);
