@@ -1,6 +1,7 @@
 package company.vk.edu.distrib.compute.aartchik.urlshortener;
 
 import com.sun.net.httpserver.HttpServer;
+import company.vk.edu.distrib.compute.Dao;
 import company.vk.edu.distrib.compute.urlshortener.UrlShortenerService;
 import org.jspecify.annotations.Nullable;
 
@@ -22,7 +23,7 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
     private boolean stopped;
     @Nullable private HttpServer server;
     @Nullable private ExecutorService executor;
-    @Nullable private PersistentStringDao linkDao;
+    @Nullable private Dao<String> linkDao;
     @Nullable private PersistentStringDao userDao;
 
     UrlShortenerServiceImpl(int port, Path dataDirectory) {
@@ -31,10 +32,23 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
     }
 
     @Override
+    public void setLinksDao(Dao<String> dao) {
+        lifecycleLock.lock();
+        try {
+            if (started || stopped) {
+                throw new IllegalStateException("Links DAO must be set before starting the service");
+            }
+            linkDao = dao;
+        } finally {
+            lifecycleLock.unlock();
+        }
+    }
+
+    @Override
     public void start() {
         lifecycleLock.lock();
         try {
-            if (started) {
+            if (started || stopped) {
                 throw new IllegalStateException("Service can only be started once");
             }
             started = true;
@@ -48,7 +62,7 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
     public void stop() {
         lifecycleLock.lock();
         try {
-            if (!started || stopped) {
+            if (stopped) {
                 return;
             }
             stopped = true;
@@ -60,8 +74,11 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
 
     private void startResources() {
         try {
-            PersistentStringDao links = new PersistentStringDao(dataDirectory.resolve("links.log"));
-            linkDao = links;
+            Dao<String> links = linkDao;
+            if (links == null) {
+                links = new PersistentStringDao(dataDirectory.resolve("links.log"));
+                linkDao = links;
+            }
             PersistentStringDao users = new PersistentStringDao(dataDirectory.resolve("users.log"));
             userDao = users;
             HttpServer httpServer = HttpServer.create(new InetSocketAddress("localhost", port), 0);
@@ -75,7 +92,7 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
                             port,
                             new LinkStore(links),
                             new BasicAuthentication(users),
-                            () -> links.isAvailable() && users.isAvailable()));
+                            users::isAvailable));
             httpServer.start();
         } catch (IOException | RuntimeException failure) {
             try {
@@ -90,7 +107,7 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
     private void closeResources() {
         HttpServer httpServer = server;
         ExecutorService workers = executor;
-        PersistentStringDao links = linkDao;
+        Dao<String> links = linkDao;
         PersistentStringDao users = userDao;
         try (links; users) {
             if (httpServer != null) {
