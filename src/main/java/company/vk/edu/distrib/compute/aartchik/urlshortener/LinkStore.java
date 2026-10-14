@@ -10,27 +10,27 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-final class LinkStore {
+public final class LinkStore {
     private static final String ALPHABET =
             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int ID_LENGTH = 10;
 
     private final Dao<String> links;
     private final SecureRandom random = new SecureRandom();
-    private final Lock createLock = new ReentrantLock();
+    private final Lock mutationLock = new ReentrantLock();
 
-    LinkStore(Dao<String> links) {
+    public LinkStore(Dao<String> links) {
         this.links = links;
     }
 
-    String get(String id) throws IOException {
+    public String get(String id) throws IOException {
         validateId(id);
         return links.get(id);
     }
 
-    String create(String longLink) throws IOException {
+    public String create(String longLink) throws IOException {
         validateLink(longLink);
-        createLock.lock();
+        mutationLock.lock();
         try {
             String id;
             do {
@@ -39,20 +39,30 @@ final class LinkStore {
             links.upsert(id, longLink);
             return id;
         } finally {
-            createLock.unlock();
+            mutationLock.unlock();
         }
     }
 
-    void update(String id, String longLink) throws IOException {
+    public void update(String id, String longLink) throws IOException {
         validateId(id);
         validateLink(longLink);
-        links.get(id);
-        links.upsert(id, longLink);
+        mutationLock.lock();
+        try {
+            links.get(id);
+            links.upsert(id, longLink);
+        } finally {
+            mutationLock.unlock();
+        }
     }
 
-    void delete(String id) throws IOException {
+    public void delete(String id) throws IOException {
         validateId(id);
-        links.delete(id);
+        mutationLock.lock();
+        try {
+            links.delete(id);
+        } finally {
+            mutationLock.unlock();
+        }
     }
 
     private boolean exists(String id) throws IOException {

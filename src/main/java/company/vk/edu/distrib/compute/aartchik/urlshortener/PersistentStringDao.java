@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-final class PersistentStringDao implements Dao<String> {
+public final class PersistentStringDao implements Dao<String> {
     private static final byte UPSERT = 1;
     private static final byte DELETE = 2;
     private static final int MAX_FIELD_SIZE = 16 * 1024 * 1024;
@@ -28,7 +28,7 @@ final class PersistentStringDao implements Dao<String> {
     private final FileChannel journal;
     private boolean closed;
 
-    PersistentStringDao(Path journalPath) throws IOException {
+    public PersistentStringDao(Path journalPath) throws IOException {
         Files.createDirectories(journalPath.getParent());
         load(journalPath);
         journal = FileChannel.open(
@@ -83,7 +83,7 @@ final class PersistentStringDao implements Dao<String> {
         }
     }
 
-    boolean isAvailable() {
+    public boolean isAvailable() {
         lock.readLock().lock();
         try {
             return !closed && journal.isOpen();
