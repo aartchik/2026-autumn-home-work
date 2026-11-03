@@ -3,13 +3,10 @@ package company.vk.edu.distrib.compute.aartchik.kv;
 import company.vk.edu.distrib.compute.Dao;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -53,7 +50,7 @@ final class FileDao implements Dao<byte[]> {
             ensureOpen();
             Path temporary = Files.createTempFile(directory, "write-", ".tmp");
             try {
-                write(temporary, value);
+                Files.write(temporary, value);
                 Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             } finally {
                 Files.deleteIfExists(temporary);
@@ -104,16 +101,6 @@ final class FileDao implements Dao<byte[]> {
             return directory.resolve(HexFormat.of().formatHex(hash));
         } catch (NoSuchAlgorithmException unavailable) {
             throw new IllegalStateException("SHA-256 is unavailable", unavailable);
-        }
-    }
-
-    private static void write(Path path, byte[] value) throws IOException {
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE)) {
-            ByteBuffer buffer = ByteBuffer.wrap(value);
-            while (buffer.hasRemaining()) {
-                channel.write(buffer);
-            }
-            channel.force(true);
         }
     }
 
