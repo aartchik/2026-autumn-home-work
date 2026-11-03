@@ -75,7 +75,7 @@ final class HttpDao implements Dao<String> {
     public void delete(String key) throws IOException {
         lock.readLock().lock();
         try {
-            checkStatus(send(request(key).DELETE().build()), 202);
+            checkStatus(send(request(key).DELETE().build()), 200);
         } finally {
             lock.readLock().unlock();
         }

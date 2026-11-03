@@ -55,7 +55,7 @@ final class ReplicaCoordinator implements AutoCloseable {
                 }
                 case "DELETE" -> {
                     dao.delete(key);
-                    yield new KvResponse(202);
+                    yield new KvResponse(HttpURLConnection.HTTP_OK);
                 }
                 default -> new KvResponse(405);
             };
@@ -121,7 +121,7 @@ final class ReplicaCoordinator implements AutoCloseable {
         return switch (method) {
             case GET -> HttpURLConnection.HTTP_OK;
             case "PUT" -> 201;
-            case "DELETE" -> 202;
+            case "DELETE" -> HttpURLConnection.HTTP_OK;
             default -> 405;
         };
     }
