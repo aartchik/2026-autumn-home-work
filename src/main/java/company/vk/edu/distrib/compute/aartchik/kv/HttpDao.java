@@ -101,14 +101,14 @@ final class HttpDao implements Dao<String> {
         if (key.isEmpty()) {
             throw new IllegalArgumentException("Key must not be empty");
         }
-        String endpoint = "http://localhost:" + owner(key) + "/v0/entity?id=";
+        String endpoint = "http://localhost:" + owner(key, ports) + "/v0/entity?id=";
         return HttpRequest.newBuilder(URI.create(endpoint + URLEncoder.encode(key, StandardCharsets.UTF_8)))
                 .timeout(TIMEOUT);
     }
 
     // Rendezvous hashing: the highest unsigned key/node score owns the key.
     // Sorted node identities also make score ties independent of configuration order.
-    private int owner(String key) {
+    static int owner(String key, int... ports) {
         MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");

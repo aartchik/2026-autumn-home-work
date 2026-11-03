@@ -19,6 +19,7 @@ final class KvService implements KVService {
     @Nullable private HttpServer server;
     @Nullable private FileDao dao;
     @Nullable private ExecutorService executor;
+    @Nullable private ReplicaCoordinator coordinator;
 
     KvService(int port) {
         this.port = port;
@@ -50,7 +51,9 @@ final class KvService implements KVService {
                 executor = workers;
                 httpServer.setExecutor(workers);
             }
-            httpServer.createContext("/", new KvHandler(storage));
+            ReplicaCoordinator replication = new ReplicaCoordinator(port, storage);
+            coordinator = replication;
+            httpServer.createContext("/", new KvHandler(storage, port, replication));
             httpServer.start();
         } catch (IOException | RuntimeException failure) {
             stop();
@@ -80,6 +83,10 @@ final class KvService implements KVService {
         ExecutorService workers = executor;
         if (workers != null) {
             workers.close();
+        }
+        ReplicaCoordinator replication = coordinator;
+        if (replication != null) {
+            replication.close();
         }
         FileDao storage = dao;
         if (storage != null) {

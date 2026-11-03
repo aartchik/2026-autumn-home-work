@@ -3,8 +3,10 @@ package company.vk.edu.distrib.compute.aartchik.kv;
 import company.vk.edu.distrib.compute.AbstractHttpServiceFactory;
 import company.vk.edu.distrib.compute.kv.KVService;
 import company.vk.edu.distrib.compute.kv.KVServiceTest;
+import company.vk.edu.distrib.compute.kv.ReplicatedKVServiceTest;
 
 @KVServiceTest
+@ReplicatedKVServiceTest
 public final class KvServiceFactory extends AbstractHttpServiceFactory<KVService> {
     @Override
     protected KVService doCreate(int port) {
