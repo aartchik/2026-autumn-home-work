@@ -12,18 +12,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-final class BasicAuthentication {
-    static final String CHALLENGE = "Basic realm=\"url-shortener\", charset=\"UTF-8\"";
+public final class BasicAuthentication {
+    public static final String CHALLENGE = "Basic realm=\"url-shortener\", charset=\"UTF-8\"";
 
     private static final String BASIC_SCHEME = "Basic";
 
     private final Dao<String> users;
 
-    BasicAuthentication(Dao<String> users) {
+    public BasicAuthentication(Dao<String> users) {
         this.users = users;
     }
 
-    boolean authenticate(Map<String, List<String>> headers) throws IOException {
+    public boolean authenticate(Map<String, List<String>> headers) throws IOException {
         List<String> values = headers.get("Authorization");
         if (values == null || values.isEmpty()) {
             return false;
@@ -50,7 +50,7 @@ final class BasicAuthentication {
         }
     }
 
-    void register(String credentials) throws IOException {
+    public void register(String credentials) throws IOException {
         Credentials parsed = parse(credentials);
         users.upsert(parsed.username(), parsed.password());
     }

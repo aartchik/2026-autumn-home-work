@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-final class UrlShortenerServiceImpl implements UrlShortenerService {
+public final class UrlShortenerServiceImpl implements UrlShortenerService {
     private final int port;
     private final Path dataDirectory;
     private final Lock lifecycleLock = new ReentrantLock();
@@ -26,7 +26,7 @@ final class UrlShortenerServiceImpl implements UrlShortenerService {
     @Nullable private Dao<String> linkDao;
     @Nullable private PersistentStringDao userDao;
 
-    UrlShortenerServiceImpl(int port, Path dataDirectory) {
+    public UrlShortenerServiceImpl(int port, Path dataDirectory) {
         this.port = port;
         this.dataDirectory = dataDirectory;
     }

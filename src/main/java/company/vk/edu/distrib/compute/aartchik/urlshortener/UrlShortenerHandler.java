@@ -11,7 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.function.BooleanSupplier;
 
-final class UrlShortenerHandler implements HttpHandler {
+public final class UrlShortenerHandler implements HttpHandler {
+    private static final int MAX_BODY_BYTES = 64 * 1024;
     private static final String CONTENT_TYPE = "text/html; charset=utf-8";
     private static final String GET = "GET";
     private static final String POST = "POST";
@@ -27,7 +28,7 @@ final class UrlShortenerHandler implements HttpHandler {
     private final String shortLinkPrefix;
     private final BooleanSupplier storageAvailable;
 
-    UrlShortenerHandler(
+    public UrlShortenerHandler(
             int port,
             LinkStore links,
             BasicAuthentication authentication,
@@ -56,6 +57,9 @@ final class UrlShortenerHandler implements HttpHandler {
     private HttpResponseData process(HttpExchange exchange) {
         try {
             return route(exchange);
+        } catch (BodyTooLargeException tooLarge) {
+            exchange.getResponseHeaders().set("Connection", "close");
+            return new HttpResponseData(413);
         } catch (NoSuchElementException missing) {
             return new HttpResponseData(404);
         } catch (IllegalArgumentException | CharacterCodingException invalidRequest) {
@@ -150,7 +154,14 @@ final class UrlShortenerHandler implements HttpHandler {
     }
 
     private static String readBody(HttpExchange exchange) throws IOException {
-        byte[] bytes = exchange.getRequestBody().readAllBytes();
+        String contentLength = exchange.getRequestHeaders().getFirst("Content-Length");
+        if (contentLength != null && Long.parseLong(contentLength) > MAX_BODY_BYTES) {
+            throw new BodyTooLargeException();
+        }
+        byte[] bytes = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
+        if (bytes.length > MAX_BODY_BYTES) {
+            throw new BodyTooLargeException();
+        }
         return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     }
 }
