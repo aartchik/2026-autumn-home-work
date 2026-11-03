@@ -1,6 +1,7 @@
 package company.vk.edu.distrib.compute.aartchik.kv;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 
 final class ReplicaCoordinator implements AutoCloseable {
     static final String INTERNAL_PATH = "/internal/entity";
+    private static final String GET = "GET";
     private static final Duration TIMEOUT = Duration.ofMillis(700);
     private final int port;
     private final FileDao dao;
@@ -46,7 +48,7 @@ final class ReplicaCoordinator implements AutoCloseable {
     KvResponse local(String method, String key, byte[] body) {
         try {
             return switch (method) {
-                case "GET" -> new KvResponse(200, dao.get(key));
+                case GET -> new KvResponse(HttpURLConnection.HTTP_OK, dao.get(key));
                 case "PUT" -> {
                     dao.upsert(key, body);
                     yield new KvResponse(201);
@@ -82,7 +84,7 @@ final class ReplicaCoordinator implements AutoCloseable {
     private static KvResponse collect(String method, int ack, int total, BlockingQueue<KvResponse> responses) {
         long deadline = System.nanoTime() + TIMEOUT.plusMillis(200).toNanos();
         int confirmed = 0;
-        KvResponse selected = new KvResponse("GET".equals(method) ? 404 : successStatus(method));
+        KvResponse selected = new KvResponse(GET.equals(method) ? 404 : successStatus(method));
         try {
             for (int received = 0; received < total; received++) {
                 long remaining = deadline - System.nanoTime();
@@ -92,9 +94,7 @@ final class ReplicaCoordinator implements AutoCloseable {
                 }
                 if (isAcknowledgement(method, response)) {
                     confirmed++;
-                    if (response.status() == 200) {
-                        selected = response;
-                    }
+                    selected = selectResponse(selected, response);
                 }
                 if (confirmed >= ack) {
                     return selected;
@@ -109,13 +109,17 @@ final class ReplicaCoordinator implements AutoCloseable {
         return new KvResponse(503);
     }
 
+    private static KvResponse selectResponse(KvResponse selected, KvResponse response) {
+        return response.status() == HttpURLConnection.HTTP_OK ? response : selected;
+    }
+
     private static boolean isAcknowledgement(String method, KvResponse response) {
-        return response.status() == successStatus(method) || "GET".equals(method) && response.status() == 404;
+        return response.status() == successStatus(method) || GET.equals(method) && response.status() == 404;
     }
 
     private static int successStatus(String method) {
         return switch (method) {
-            case "GET" -> 200;
+            case GET -> HttpURLConnection.HTTP_OK;
             case "PUT" -> 201;
             case "DELETE" -> 202;
             default -> 405;

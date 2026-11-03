@@ -47,9 +47,7 @@ final class KvHandler implements HttpHandler {
     private KvResponse route(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getRawPath();
         if ("/v0/status".equals(path)) {
-            return "GET".equals(exchange.getRequestMethod())
-                    ? new KvResponse(dao.isAvailable() ? 200 : 503)
-                    : methodNotAllowed(exchange, "GET");
+            return status(exchange);
         }
         if (!ENTITY_PATH.equals(path) && !ReplicaCoordinator.INTERNAL_PATH.equals(path)) {
             return new KvResponse(404);
@@ -66,6 +64,12 @@ final class KvHandler implements HttpHandler {
         ReplicaConfiguration configuration = ReplicaConfiguration.load(port);
         int ack = readAck(exchange, configuration.factor());
         return coordinator.execute(method, key, readBody(exchange, method), ack, configuration);
+    }
+
+    private KvResponse status(HttpExchange exchange) {
+        return "GET".equals(exchange.getRequestMethod())
+                ? new KvResponse(dao.isAvailable() ? 200 : 503)
+                : methodNotAllowed(exchange, "GET");
     }
 
     private static int readAck(HttpExchange exchange, int factor) {
