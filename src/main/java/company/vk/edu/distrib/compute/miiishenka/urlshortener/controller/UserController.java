@@ -5,10 +5,10 @@ import java.nio.charset.StandardCharsets;
 
 import com.sun.net.httpserver.HttpExchange;
 import company.vk.edu.distrib.compute.Dao;
-import company.vk.edu.distrib.compute.miiishenka.urlshortener.exception.HttpStatusException;
-import company.vk.edu.distrib.compute.miiishenka.urlshortener.exception.UnprocessableContentException;
+import company.vk.edu.distrib.compute.miiishenka.http.exception.HttpStatusException;
+import company.vk.edu.distrib.compute.miiishenka.http.exception.UnprocessableContentException;
 
-public class UserController extends BaseController {
+public class UserController extends BaseUrlShortenerController {
     private static final int CREDENTIAL_PARTS_COUNT = 2;
 
     private final Dao<String> usersDao;

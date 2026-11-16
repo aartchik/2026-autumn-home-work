@@ -13,7 +13,6 @@ import company.vk.edu.distrib.compute.sovesti.urlshortener.handler.ExchangeAttri
 public record Response(int code, ResponseBody body) implements Consumer<HttpExchange>, HttpHandler {
 
     public Response {
-        Objects.requireNonNull(code);
         Objects.requireNonNull(body);
     }
 

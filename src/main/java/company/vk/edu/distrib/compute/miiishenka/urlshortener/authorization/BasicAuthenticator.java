@@ -3,10 +3,11 @@ package company.vk.edu.distrib.compute.miiishenka.urlshortener.authorization;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.NoSuchElementException;
 
 import com.sun.net.httpserver.HttpExchange;
 import company.vk.edu.distrib.compute.Dao;
-import company.vk.edu.distrib.compute.miiishenka.urlshortener.exception.UnauthorizedException;
+import company.vk.edu.distrib.compute.miiishenka.http.exception.UnauthorizedException;
 
 public class BasicAuthenticator {
     private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -35,8 +36,13 @@ public class BasicAuthenticator {
         }
         String user = parts[0];
         String password = parts[1];
-        String actualPassword = usersDao.get(user);
-        if (actualPassword == null || !actualPassword.equals(password)) {
+        String actualPassword;
+        try {
+            actualPassword = usersDao.get(user);
+        } catch (NoSuchElementException ignored) {
+            throw new UnauthorizedException();
+        }
+        if (!actualPassword.equals(password)) {
             throw new UnauthorizedException();
         }
     }

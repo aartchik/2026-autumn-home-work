@@ -13,7 +13,7 @@ public final class KeyValuePair {
 
     public KeyValuePair(String raw, char separator) {
         this.raw = Objects.requireNonNull(raw);
-        this.separator = String.valueOf(Objects.requireNonNull(separator));
+        this.separator = String.valueOf(separator);
     }
 
     public KeyValuePair(String raw) {
