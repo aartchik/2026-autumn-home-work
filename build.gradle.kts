@@ -32,10 +32,16 @@ dependencies {
     implementation("com.github.spotbugs:spotbugs-annotations:4.10.4")
     implementation("org.jspecify:jspecify:1.0.0")
 
+    implementation("org.apache.kafka:kafka-clients:4.4.0")
+
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.junit-pioneer:junit-pioneer:2.3.0")
+
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.5")
+    testImplementation("org.testcontainers:testcontainers-kafka:2.0.5")
 }
 
 nullaway {

@@ -14,4 +14,17 @@ public interface UrlShortenerService extends HttpService {
     default void setLinksDao(Dao<String> dao) {
         throw new UnsupportedOperationException("implement me");
     }
+
+    /**
+     * Enables moderation of created links through Kafka. Must be called before this service start method is called.
+     * Should throw IllegalStateException if called after this service start or stop methods.
+     *
+     * <p>
+     * If it is never called, links are not moderated. The service must work even if Kafka is unavailable.
+     *
+     * @param bootstrapServers - Kafka {@code bootstrap.servers}
+     */
+    default void setKafkaBootstrapServers(String bootstrapServers) {
+        throw new UnsupportedOperationException("implement me");
+    }
 }

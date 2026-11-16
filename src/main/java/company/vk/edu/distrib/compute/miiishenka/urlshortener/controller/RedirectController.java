@@ -4,10 +4,9 @@ import java.io.IOException;
 
 import com.sun.net.httpserver.HttpExchange;
 import company.vk.edu.distrib.compute.Dao;
-import company.vk.edu.distrib.compute.miiishenka.urlshortener.exception.HttpStatusException;
-import company.vk.edu.distrib.compute.miiishenka.urlshortener.exception.NotFoundException;
+import company.vk.edu.distrib.compute.miiishenka.http.exception.HttpStatusException;
 
-public class RedirectController extends BaseController {
+public class RedirectController extends BaseUrlShortenerController {
     private final Dao<String> linksDao;
 
     public RedirectController(Dao<String> linksDao) {
@@ -24,9 +23,6 @@ public class RedirectController extends BaseController {
     public void get(HttpExchange exchange) throws HttpStatusException, IOException {
         String shortId = extractShortId(exchange);
         String longLink = linksDao.get(shortId);
-        if (longLink == null) {
-            throw new NotFoundException();
-        }
         exchange.getResponseHeaders().add("Location", longLink);
         exchange.sendResponseHeaders(301, 0);
     }
