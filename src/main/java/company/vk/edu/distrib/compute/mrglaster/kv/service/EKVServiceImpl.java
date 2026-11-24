@@ -18,12 +18,15 @@ public class EKVServiceImpl implements KVService {
     private final HttpServer httpServer;
     private static final int SHUTDOWN_DELAY = 5;
     private final Dao<byte[]> entityDao;
-    private static final String ENTITY_STORAGE_FILE = "/tmp/entity";
+    private static final String PATH_BASE = "/tmp/entity-";
 
     public EKVServiceImpl(int port) throws IOException {
         this.httpServer = HttpServer.create(new InetSocketAddress(port), 0);
         ControllerManager routingManager = new ControllerManager(null);
-        this.entityDao = new PersistentDao<>(ENTITY_STORAGE_FILE, PersistentDao.byteArraySerializer());
+        this.entityDao = new PersistentDao<>(
+                PATH_BASE + port,
+                PersistentDao.byteArraySerializer()
+        );
         routingManager.addController(new EntityController(entityDao));
         routingManager.addController(new KVStatusController());
         routingManager.register(this.httpServer);

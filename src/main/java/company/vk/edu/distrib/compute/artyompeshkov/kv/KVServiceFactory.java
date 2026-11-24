@@ -13,6 +13,6 @@ public class KVServiceFactory extends AbstractHttpServiceFactory<KVService> {
 
     @Override
     protected KVService doCreate(int port) throws IOException {
-        return new KVServiceImpl(port, new BitcaskDao(STORAGE_DIR));
+        return new KVServiceImpl(port, new BitcaskDao(STORAGE_DIR.resolve(String.valueOf(port))));
     }
 }

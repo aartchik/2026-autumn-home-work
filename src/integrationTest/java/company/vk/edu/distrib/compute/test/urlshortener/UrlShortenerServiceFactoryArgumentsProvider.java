@@ -12,6 +12,7 @@ public class UrlShortenerServiceFactoryArgumentsProvider
         super(
             AbstractArgumentsProvider.findAnnotatedFactories(UrlShortenerTest.class),
             AbstractHttpServiceFactory.class
+
         );
     }
 }

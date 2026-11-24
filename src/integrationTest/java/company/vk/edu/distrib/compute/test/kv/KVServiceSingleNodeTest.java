@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 @ParameterizedClass(allowZeroInvocations = true)
 @ArgumentsSource(KVServiceFactoryArgumentsProvider.class)
-@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-10-\\d\\d")
+@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-(11-22|11-23|11-24|11-25|11-26|11-27|11-28|11-29|11-30)")
 class KVServiceSingleNodeTest {
 
     static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();

@@ -41,7 +41,9 @@ public class KVServiceFactory extends AbstractHttpServiceFactory<company.vk.edu.
     @Override
     protected company.vk.edu.distrib.compute.kv.KVService doCreate(int port) throws IOException {
         int numThreads = getNumThreads();
-        Path dataDirectory = getDataDirectory();
+        Path dataDirectory = getDataDirectory()
+                .resolve("kv")
+                .resolve(Integer.toString(port));
         Files.createDirectories(dataDirectory);
 
         Dao<byte[]> dao = new PersistentDao(dataDirectory);

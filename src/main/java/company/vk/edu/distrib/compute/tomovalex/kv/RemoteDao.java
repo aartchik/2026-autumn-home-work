@@ -14,15 +14,24 @@ import java.util.NoSuchElementException;
 
 public class RemoteDao implements Dao<String> {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
+    private static final int OK = 200;
+    private static final int CREATED = 201;
+    private static final int ACCEPTED = 202;
     private static final int NOT_FOUND = 404;
     private static final int BAD_REQUEST = 400;
 
+    private final int port;
     private final String entityUrl;
     private final HttpClient client;
 
     public RemoteDao(int port) {
+        this.port = port;
         this.entityUrl = "http://localhost:" + port + "/v0/entity?id=";
         this.client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+    }
+
+    int getPort() {
+        return port;
     }
 
     @Override
@@ -32,7 +41,7 @@ public class RemoteDao implements Dao<String> {
         if (response.statusCode() == NOT_FOUND) {
             throw new NoSuchElementException(key);
         }
-        checkStatus(response, 200);
+        checkStatus(response, OK);
         return new String(response.body(), StandardCharsets.UTF_8);
     }
 
@@ -43,13 +52,13 @@ public class RemoteDao implements Dao<String> {
             throw new IllegalArgumentException();
         }
         HttpRequest request = builder.PUT(HttpRequest.BodyPublishers.ofString(value, StandardCharsets.UTF_8)).build();
-        checkStatus(send(request), 201);
+        checkStatus(send(request), CREATED);
     }
 
     @Override
     public void delete(String key) throws IOException {
         HttpRequest request = requestBuilder(key).DELETE().build();
-        checkStatus(send(request), 202);
+        checkStatus(send(request), ACCEPTED);
     }
 
     @Override

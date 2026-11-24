@@ -82,7 +82,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @ParameterizedClass(allowZeroInvocations = true)
 @MethodSource("factoryPairs")
 @Testcontainers(disabledWithoutDocker = true)
-@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-(11-11|11-12|11-13|11-14|11-15|11-16|11-17|11-18|11-19|11-20|11-21|11-22|11-23)")
+@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-(11-22|11-23|11-24|11-25|11-26|11-27|11-28|11-29|11-30)")
 public class KafkaTest {
     private static final String LINKS_CREATED_TOPIC_NAME = "links.created";
     private static final String LINKS_MODERATED_TOPIC_NAME = "links.moderated";

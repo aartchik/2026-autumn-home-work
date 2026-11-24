@@ -102,4 +102,8 @@ public class EPRemoteDao implements Dao<String> {
     private String unexpectedStatus(String key, int status) {
         return "Unexpected status %d for %s".formatted(status, uri(key));
     }
+
+    public int getPort() {
+        return this.port;
+    }
 }

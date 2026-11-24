@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @ParameterizedClass(allowZeroInvocations = true)
 @MethodSource("createServiceDaoPairs")
-@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-(10-07|10-08|10-09|10-10|10-11|10-12|10-13|10-14)")
+@EnabledIfEnvironmentVariable(named = "CURRENT_DATE", matches = "2026-(11-22|11-23|11-24|11-25|11-26|11-27|11-28|11-29|11-30)")
 public class ShardingTest {
     private static final int CLUSTER_SIZE = 2;
     private static final int KEYS_COUNT = 50;

@@ -20,6 +20,10 @@ public class RemoteDao implements Dao<String> {
     this.client = HttpClient.newHttpClient();
   }
 
+  public URI getBaseUri() {
+    return baseUri;
+  }
+
   @Override
   public String get(final String key) throws NoSuchElementException, IllegalArgumentException, IOException {
     final HttpRequest request = HttpRequest.newBuilder(uriForKey(key))
@@ -78,7 +82,7 @@ public class RemoteDao implements Dao<String> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     client.close();
   }
 }
