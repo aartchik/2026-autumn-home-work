@@ -95,19 +95,28 @@ final class RecordWorker implements AutoCloseable {
             if (!running.get()) {
                 return;
             }
-            TopicPartition partition = new TopicPartition(record.topic(), record.partition());
-            try {
-                handler.accept(record, client.groupMetadata());
-                if (commitOffsets) {
-                    client.commitSync(Map.of(partition, new OffsetAndMetadata(record.offset() + 1)), CLOSE_TIMEOUT);
-                }
-                client.seek(partition, record.offset() + 1);
-            } catch (RuntimeException failure) {
-                // A failed operation must be retried before advancing this partition's offset.
-                client.seek(partition, record.offset());
-                LOG.warn("Kafka record will be retried at {}:{}", partition, record.offset(), failure);
+            if (!process(client, record)) {
                 return;
             }
+        }
+    }
+
+    private boolean process(KafkaConsumer<String, String> client, ConsumerRecord<String, String> record) {
+        TopicPartition partition = new TopicPartition(record.topic(), record.partition());
+        try {
+            handler.accept(record, client.groupMetadata());
+            if (commitOffsets) {
+                client.commitSync(Map.of(partition, new OffsetAndMetadata(record.offset() + 1)), CLOSE_TIMEOUT);
+            }
+            client.seek(partition, record.offset() + 1);
+            return true;
+        } catch (RuntimeException failure) {
+            // A failed operation must be retried before advancing this partition's offset.
+            client.seek(partition, record.offset());
+            if (LOG.isWarnEnabled()) {
+                LOG.warn("Kafka record will be retried at {}:{}", partition, record.offset(), failure);
+            }
+            return false;
         }
     }
 

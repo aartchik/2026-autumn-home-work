@@ -31,7 +31,7 @@ final class EventPublisher implements AutoCloseable {
     }
 
     void publish(LinkCreatedEvent event) {
-        if (running.get() && !pending.offer(event)) {
+        if (running.get() && !pending.offer(event) && LOG.isWarnEnabled()) {
             LOG.warn("Moderation queue is full; link {} remains available without moderation", event.id());
         }
     }
@@ -54,12 +54,16 @@ final class EventPublisher implements AutoCloseable {
     }
 
     private void send(KafkaProducer<String, String> producer, LinkCreatedEvent event) throws InterruptedException {
+        ProducerRecord<String, String> record =
+                new ProducerRecord<>(KafkaSettings.CREATED, event.id(), EventCodec.encode(event));
         while (running.get()) {
             try {
-                producer.send(new ProducerRecord<>(KafkaSettings.CREATED, event.id(), EventCodec.encode(event))).get();
+                producer.send(record).get();
                 return;
             } catch (ExecutionException | KafkaException failure) {
-                LOG.warn("Unable to publish link {}; will retry", event.id(), failure);
+                if (LOG.isWarnEnabled()) {
+                    LOG.warn("Unable to publish link {}; will retry", event.id(), failure);
+                }
                 Thread.sleep(200);
             }
         }

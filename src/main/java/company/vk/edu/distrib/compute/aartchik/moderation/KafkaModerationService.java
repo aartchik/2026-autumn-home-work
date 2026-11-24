@@ -18,8 +18,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 final class KafkaModerationService implements ModerationService {
+    private final ReentrantLock lifecycleLock = new ReentrantLock();
     private final String bootstrapServers;
     private final BannedWords dictionary;
     @Nullable private KafkaProducer<String, String> producer;
@@ -33,7 +35,16 @@ final class KafkaModerationService implements ModerationService {
     }
 
     @Override
-    public synchronized void start() {
+    public void start() {
+        lifecycleLock.lock();
+        try {
+            startResources();
+        } finally {
+            lifecycleLock.unlock();
+        }
+    }
+
+    private void startResources() {
         if (started || stopped) {
             throw new IllegalStateException("Moderation service can only be started once");
         }
@@ -93,7 +104,16 @@ final class KafkaModerationService implements ModerationService {
     }
 
     @Override
-    public synchronized void stop() {
+    public void stop() {
+        lifecycleLock.lock();
+        try {
+            stopResources();
+        } finally {
+            lifecycleLock.unlock();
+        }
+    }
+
+    private void stopResources() {
         if (stopped) {
             return;
         }
