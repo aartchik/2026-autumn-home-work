@@ -10,6 +10,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.function.BooleanSupplier;
+import java.util.function.BiConsumer;
 
 public final class UrlShortenerHandler implements HttpHandler {
     private static final int MAX_BODY_BYTES = 64 * 1024;
@@ -27,16 +28,19 @@ public final class UrlShortenerHandler implements HttpHandler {
     private final BasicAuthentication authentication;
     private final String shortLinkPrefix;
     private final BooleanSupplier storageAvailable;
+    private final BiConsumer<String, String> onCreated;
 
     public UrlShortenerHandler(
             int port,
             LinkStore links,
             BasicAuthentication authentication,
-            BooleanSupplier storageAvailable) {
+            BooleanSupplier storageAvailable,
+            BiConsumer<String, String> onCreated) {
         this.links = links;
         this.authentication = authentication;
         shortLinkPrefix = "http://localhost:" + port + "/";
         this.storageAvailable = storageAvailable;
+        this.onCreated = onCreated;
     }
 
     @Override
@@ -106,7 +110,9 @@ public final class UrlShortenerHandler implements HttpHandler {
         if (!POST.equals(exchange.getRequestMethod())) {
             return methodNotAllowed(exchange, POST);
         }
-        String id = links.create(readBody(exchange));
+        String url = readBody(exchange);
+        String id = links.create(url);
+        onCreated.accept(id, url);
         return new HttpResponseData(201, shortLinkPrefix + id);
     }
 

@@ -2,6 +2,7 @@ package company.vk.edu.distrib.compute.aartchik.urlshortener;
 
 import com.sun.net.httpserver.HttpServer;
 import company.vk.edu.distrib.compute.Dao;
+import company.vk.edu.distrib.compute.aartchik.moderation.ShortenerModeration;
 import company.vk.edu.distrib.compute.urlshortener.UrlShortenerService;
 import org.jspecify.annotations.Nullable;
 
@@ -25,6 +26,8 @@ public final class UrlShortenerServiceImpl implements UrlShortenerService {
     @Nullable private ExecutorService executor;
     @Nullable private Dao<String> linkDao;
     @Nullable private PersistentStringDao userDao;
+    @Nullable private String kafkaBootstrapServers;
+    @Nullable private ShortenerModeration moderation;
 
     public UrlShortenerServiceImpl(int port, Path dataDirectory) {
         this.port = port;
@@ -39,6 +42,19 @@ public final class UrlShortenerServiceImpl implements UrlShortenerService {
                 throw new IllegalStateException("Links DAO must be set before starting the service");
             }
             linkDao = dao;
+        } finally {
+            lifecycleLock.unlock();
+        }
+    }
+
+    @Override
+    public void setKafkaBootstrapServers(String bootstrapServers) {
+        lifecycleLock.lock();
+        try {
+            if (started || stopped) {
+                throw new IllegalStateException("Kafka must be configured before starting the service");
+            }
+            kafkaBootstrapServers = bootstrapServers;
         } finally {
             lifecycleLock.unlock();
         }
@@ -86,13 +102,22 @@ public final class UrlShortenerServiceImpl implements UrlShortenerService {
             ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
             executor = workers;
             httpServer.setExecutor(workers);
+            LinkStore store = new LinkStore(links);
+            String bootstrapServers = kafkaBootstrapServers;
+            ShortenerModeration linkModeration = bootstrapServers == null
+                    ? null : new ShortenerModeration(bootstrapServers, store);
+            moderation = linkModeration;
+            if (linkModeration != null) {
+                linkModeration.start();
+            }
             httpServer.createContext(
                     "/",
                     new UrlShortenerHandler(
                             port,
-                            new LinkStore(links),
+                            store,
                             new BasicAuthentication(users),
-                            users::isAvailable));
+                            users::isAvailable,
+                            linkModeration == null ? (id, url) -> { } : linkModeration::created));
             httpServer.start();
         } catch (IOException | RuntimeException failure) {
             try {
@@ -115,6 +140,10 @@ public final class UrlShortenerServiceImpl implements UrlShortenerService {
             }
             if (workers != null) {
                 workers.close();
+            }
+            ShortenerModeration linkModeration = moderation;
+            if (linkModeration != null) {
+                linkModeration.close();
             }
         } catch (IOException closeFailure) {
             throw new UncheckedIOException("Unable to close persistent storage", closeFailure);
